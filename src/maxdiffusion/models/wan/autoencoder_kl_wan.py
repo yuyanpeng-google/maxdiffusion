@@ -116,8 +116,9 @@ class WanCausalConv3d(nnx.Module):
       x_padded = jnp.pad(x, padding_to_apply, mode="constant", constant_values=0.0)
     else:
       x_padded = x
-    out = self.conv(x_padded)
-    return out
+    del x
+    # out = self.conv(x_padded)
+    return self.conv(x_padded)
 
 
 class WanRMS_norm(nnx.Module):
@@ -419,13 +420,23 @@ class WanResidualBlock(nnx.Module):
     x = self.nonlinearity(x)
 
     if feat_cache is not None:
+      # idx = feat_idx[0]
+      # cache_x = jnp.copy(x[:, -CACHE_T:, :, :, :])
+      # if cache_x.shape[1] < 2 and feat_cache[idx] is not None:
+      #   cache_x = jnp.concatenate([jnp.expand_dims(feat_cache[idx][:, -1, :, :, :], axis=1), cache_x], axis=1)
+      # x = self.conv1(x, feat_cache[idx], idx)
+      # feat_cache[idx] = cache_x
+      # feat_idx[0] += 1
+
       idx = feat_idx[0]
-      cache_x = jnp.copy(x[:, -CACHE_T:, :, :, :])
-      if cache_x.shape[1] < 2 and feat_cache[idx] is not None:
-        cache_x = jnp.concatenate([jnp.expand_dims(feat_cache[idx][:, -1, :, :, :], axis=1), cache_x], axis=1)
-      x = self.conv1(x, feat_cache[idx], idx)
-      feat_cache[idx] = cache_x
+      x2 = self.conv1(x, feat_cache[idx], idx)
+      if x.shape[1] < 2 and feat_cache[idx] is not None:
+        feat_cache[idx] = jnp.concatenate([jnp.expand_dims(feat_cache[idx][:, -1, :, :, :], axis=1), x[:, -CACHE_T:, :, :, :]], axis=1)
+      else:
+        feat_cache[idx] = x[:, -CACHE_T:, :, :, :]
       feat_idx[0] += 1
+      x = x2
+      del x2
     else:
       x = self.conv1(x)
 
@@ -434,13 +445,23 @@ class WanResidualBlock(nnx.Module):
     idx = feat_idx[0]
 
     if feat_cache is not None:
+      # idx = feat_idx[0]
+      # cache_x = jnp.copy(x[:, -CACHE_T:, :, :, :])
+      # if cache_x.shape[1] < 2 and feat_cache[idx] is not None:
+      #   cache_x = jnp.concatenate([jnp.expand_dims(feat_cache[idx][:, -1, :, :, :], axis=1), cache_x], axis=1)
+      # x = self.conv2(x, feat_cache[idx])
+      # feat_cache[idx] = cache_x
+      # feat_idx[0] += 1
+
       idx = feat_idx[0]
-      cache_x = jnp.copy(x[:, -CACHE_T:, :, :, :])
-      if cache_x.shape[1] < 2 and feat_cache[idx] is not None:
-        cache_x = jnp.concatenate([jnp.expand_dims(feat_cache[idx][:, -1, :, :, :], axis=1), cache_x], axis=1)
-      x = self.conv2(x, feat_cache[idx])
-      feat_cache[idx] = cache_x
+      x2 = self.conv2(x, feat_cache[idx])
+      if x.shape[1] < 2 and feat_cache[idx] is not None:
+        feat_cache[idx] = jnp.concatenate([jnp.expand_dims(feat_cache[idx][:, -1, :, :, :], axis=1), x[:, -CACHE_T:, :, :, :]], axis=1)
+      else:
+        feat_cache[idx] = x[:, -CACHE_T:, :, :, :]
       feat_idx[0] += 1
+      x = x2
+      del x2
     else:
       x = self.conv2(x)
     x = x + h
